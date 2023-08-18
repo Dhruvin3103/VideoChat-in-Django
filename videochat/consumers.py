@@ -24,6 +24,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
         
     async def receive(self, text_data):
         text_data_json = json.loads(text_data)
+        print(text_data_json)
+        print("/n")
         message = text_data_json["message"]
         action = text_data_json['action']
             
@@ -55,5 +57,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
     async def send_sdp(self, event):
         # print(str(event['message'])+"<----")
         message = event['message']
-
+        print(message)
+        print("/n- answ")
         await self.send(text_data=json.dumps(message))
