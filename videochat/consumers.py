@@ -1,29 +1,67 @@
 import json
 
 from channels.generic.websocket import AsyncWebsocketConsumer
-
+from user.models import User
+from asgiref.sync import async_to_sync, sync_to_async
+from videochat.models import Lobby
 
 class ChatConsumer(AsyncWebsocketConsumer):
     async def connect(self):
-       print('connect')
-       
-       self.room_name = self.scope["url_route"]["kwargs"]["room_name"]
-       self.room_group_name = self.room_name
-       print(self.room_name)
-       await self.channel_layer.group_add(
-           self.room_group_name,
-           self.channel_name
-       )
+            print('connect')       
+            self.lobby_code = self.scope["url_route"]["kwargs"]["lobby_code"]
+            self.username = self.scope["url_route"]["kwargs"]["username"]
+            
+            lobby = await sync_to_async(Lobby.objects.filter(lobby_id=self.lobby_code).first)()
+            print(lobby)
+            if not lobby:
+                await self.accept()
+                print("send mess to fronted")
+                # Room doesn't exist, send a custom message to the frontend
+                await self.send(text_data=json.dumps({
+                    'status' : 404,
+                    'message': 'Room does not exist'
+                }))
+                await self.close()
+                return
+            
+            user = await sync_to_async(User.objects.get)(username=self.username)
+            
+            await sync_to_async(lobby.lobby_users.add)(user)
+            self.room_group_name = self.lobby_code
+            
+            print(self.username, self.lobby_code)
+            await self.channel_layer.group_add(
+                self.room_group_name,
+                self.channel_name
+            )
 
-       await self.accept()
+            await self.accept()
 
     async def disconnect(self, close_code):
+        self.lobby_code = self.scope["url_route"]["kwargs"]["lobby_code"]
+        self.username = self.scope["url_route"]["kwargs"]["username"]
+        print(self.lobby_code, self.username)
 
-        await self.channel_layer.group_discard(
-            self.room_group_name,
-            self.channel_name
-        )
-        print("DisConnected")
+        # Wrap database operations with sync_to_async
+        lobby = await sync_to_async(Lobby.objects.filter(lobby_id=self.lobby_code).first)()
+        user = await sync_to_async(User.objects.filter(username=self.username).first)()
+        if lobby:
+            await sync_to_async(lobby.lobby_users.remove)(user)
+            bool1 = await sync_to_async(lobby.lobby_users.exists)()
+            print(bool1)
+            if not bool1:
+                print("hi")
+                await sync_to_async(lobby.delete)()
+
+            await self.channel_layer.group_discard(
+                self.room_group_name,
+                self.channel_name
+            )
+            
+            print("Disconnected")
+        else:
+            print("no channel setuped so what to disconncet")
+
         
     async def receive(self, text_data):
         text_data_json = json.loads(text_data)
