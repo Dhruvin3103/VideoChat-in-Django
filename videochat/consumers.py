@@ -1,9 +1,10 @@
 import json
-
+from datetime import datetime, timedelta, timezone
 from channels.generic.websocket import AsyncWebsocketConsumer
 from user.models import User
 from asgiref.sync import async_to_sync, sync_to_async
 from videochat.models import Lobby
+
 
 class ChatConsumer(AsyncWebsocketConsumer):
     async def connect(self):
@@ -40,18 +41,25 @@ class ChatConsumer(AsyncWebsocketConsumer):
     async def disconnect(self, close_code):
         self.lobby_code = self.scope["url_route"]["kwargs"]["lobby_code"]
         self.username = self.scope["url_route"]["kwargs"]["username"]
+        
         print(self.lobby_code, self.username)
 
         # Wrap database operations with sync_to_async
         lobby = await sync_to_async(Lobby.objects.filter(lobby_id=self.lobby_code).first)()
         user = await sync_to_async(User.objects.filter(username=self.username).first)()
+                 
         if lobby:
             await sync_to_async(lobby.lobby_users.remove)(user)
             bool1 = await sync_to_async(lobby.lobby_users.exists)()
             print(bool1)
             if not bool1:
-                print("hi")
-                # await sync_to_async(lobby.delete)()
+                print('no users')
+                print(lobby.created_at)
+                current_datetime = datetime.now(timezone.utc)
+                time_difference = current_datetime - lobby.created_at   
+                if time_difference>timedelta(days=2):
+                    print("hi")
+                    # await sync_to_async(lobby.delete)()
 
             await self.channel_layer.group_discard(
                 self.room_group_name,
