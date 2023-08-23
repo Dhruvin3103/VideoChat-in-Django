@@ -51,7 +51,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             print(bool1)
             if not bool1:
                 print("hi")
-                await sync_to_async(lobby.delete)()
+                # await sync_to_async(lobby.delete)()
 
             await self.channel_layer.group_discard(
                 self.room_group_name,
@@ -69,7 +69,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
         print("/n")
         message = text_data_json["message"]
         action = text_data_json['action']
-            
+        if 'mapPeers' in message:
+            peerObj = message['mapPeers']
+            print(peerObj)
+        else:
+            peerObj = {}
         if action in ['new-offer', 'new-answer']:
             receiver_channel_name = text_data_json['message']['receiver_channel_name']  # Correct the key name here
             text_data_json['message']['receiver_channel_name'] = self.channel_name  # Correct the key name here
@@ -77,7 +81,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 receiver_channel_name ,
                 {
                     'type': 'send.sdp',
-                    'message' : text_data_json
+                    'message' : text_data_json,
+                    "mapPeers" : peerObj
                 }
             )
             return
@@ -88,7 +93,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
             self.room_group_name,
             {
                 'type': 'send.sdp',
-                'message' : text_data_json
+                'message' : text_data_json,
+                "mapPeers" : peerObj
             }
         )
 
