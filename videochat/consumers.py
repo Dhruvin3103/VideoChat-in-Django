@@ -5,8 +5,13 @@ from user.models import User
 from asgiref.sync import async_to_sync, sync_to_async
 from videochat.models import Lobby
 
-
 class ChatConsumer(AsyncWebsocketConsumer):
+    async def connect(self):
+        print("chat connect")
+        self.lobby_code = self.scope["url_route"]["kwargs"]["lobby_code"]
+        self.username = self.scope["url_route"]["kwargs"]["username"]
+
+class VideoConsumer(AsyncWebsocketConsumer):
     async def connect(self):
             print('connect')       
             self.lobby_code = self.scope["url_route"]["kwargs"]["lobby_code"]
